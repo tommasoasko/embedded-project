@@ -26,7 +26,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+// #include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,13 +48,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+volatile uint16_t adc_dati[2] = {0, 0};
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+int uint_to_string(uint16_t, char*);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -96,12 +98,29 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dati, 2);
+
+  // TODO try to  remove this when the DMA buffer is longer
+  HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    char buffer[64] = "POT: ";
+    int idx = 5;
+    idx += uint_to_string(adc_dati[0], &buffer[idx]);
+
+    strcpy(&buffer[idx], ", NTC: ");
+    idx += 7;
+    idx += uint_to_string(adc_dati[1], &buffer[idx]);
+
+    strcpy(&buffer[idx], "\r\n");
+    idx += 2;
+
+    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, idx, 100);
+    HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -146,7 +165,32 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == GPIO_PIN_13) {
+        char btn_msg[] = "Bottone Premuto!\r\n";
+        HAL_UART_Transmit(&huart2, (uint8_t*)btn_msg, strlen(btn_msg), 100);
+    }
+}
 
+
+int uint_to_string(uint16_t num, char* str) {
+    int i = 0;
+    if (num == 0) {
+        str[i++] = '0';
+    } else {
+        char temp[10];
+        int temp_idx = 0;
+        while (num > 0) {
+            temp[temp_idx++] = (num % 10) + '0';
+            num /= 10;
+        }
+        while (temp_idx > 0) {
+            str[i++] = temp[--temp_idx];
+        }
+    }
+    str[i] = '\0';
+    return i;
+}
 /* USER CODE END 4 */
 
 /**
