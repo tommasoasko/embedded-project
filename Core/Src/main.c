@@ -34,12 +34,6 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-typedef enum {
-	NO_FILTER,
-	MOVING_AVERAGE_FILTER,
-	RANDOM_NOISE_FILTER,
-} filter_type_t;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -62,10 +56,10 @@ char cli_buffer[64];			// buffer for command line input
 volatile uint8_t cli_idx = 0;	// cli buffer index
 volatile uint8_t cli_ready = 0; // flag indicating when a command is ready to be processed
 
-volatile uint8_t is_streaming = 1;				   // flag for streaming/cli mode
+volatile uint8_t is_streaming = 1;				   // flag for streaming/cli mode // TODO substitute with ctx->streaming_mode
 volatile uint32_t last_button_press_timestamp = 0; // timestamp of the last button press
 
-volatile filter_type_t current_filter = NO_FILTER; // current filter type
+volatile FilterType_t current_filter = NO_FILTER; // current filter type // TODO substitute with ctx->current_filter
 MovingAverageFilter_t moving_average_filter_pot; // moving average filter instance for potentiometer
 MovingAverageFilter_t moving_average_filter_ntc; // moving average filter instance for NTC
 
@@ -117,6 +111,7 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_data, 2);

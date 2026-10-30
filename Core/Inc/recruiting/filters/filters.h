@@ -12,4 +12,10 @@ struct MovingAverageFilter_s {
     uint16_t count;
 };
 
+typedef enum {
+	NO_FILTER,
+	MOVING_AVERAGE_FILTER,
+	RANDOM_NOISE_FILTER,
+} FilterType_t;
+
 #endif // FILTERS_H
