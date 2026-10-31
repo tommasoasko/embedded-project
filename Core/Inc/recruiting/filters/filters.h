@@ -5,7 +5,14 @@
 
 #include "filters-api.h"
 
-struct MovingAverageFilter_s {
+struct MovingAverageFilterPot_s {
+    uint16_t buffer[FILTER_WINDOW_SIZE];
+    uint16_t index;
+    uint32_t sum;
+    uint16_t count;
+};
+
+struct MovingAverageFilterNTC_s {
     uint16_t buffer[FILTER_WINDOW_SIZE];
     uint16_t index;
     uint32_t sum;

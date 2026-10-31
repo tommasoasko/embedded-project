@@ -6,6 +6,7 @@
 #include "tim.h"
 #include "eagletrt-fsm-api.h"
 #include "Core/Inc/recruiting/filters/filters.h"
+#include "adc.h"
 
 typedef enum {
     STATE_POST = 0,
@@ -17,10 +18,13 @@ typedef enum {
 } SystemState_t;
 
 typedef struct {
-    uint16_t *adc_data;           // DMA buffer for ADC values
+    volatile uint16_t *adc_data;           // DMA buffer for ADC values
     FilterType_t current_filter;  // current filter type
     uint16_t filtered_pot;        // filtered potentiometer value
     uint16_t filtered_ntc;        // filtered NTC value
+
+    MovingAverageFilterPot_t moving_average_filter_pot; // moving average filter for potentiometer
+    MovingAverageFilterNTC_t moving_average_filter_ntc; // moving average filter for NTC
     
     uint8_t button_pressed;       // flag (0/1) set by the button interrupt
     uint8_t cli_command_run;      // flag (0/1) set when a CLI command is received
@@ -30,16 +34,20 @@ typedef struct {
     uint32_t state_entry_time;     // timestamp when the current state was entered
     uint32_t last_uart_tx_time;   // timestamp of the last UART transmission
     uint32_t warning_condition_start; // timestamp when the warning condition started
+    uint32_t btn_hold_time; // timestamp of the last button press, for debouncing
 
     uint32_t last_breathing_update; // timestamp of the last breathing effect update
     int8_t breathing_direction;     // 1 increasing brightness, -1 decreasing brightness
     int16_t breathing_duty;         // [0, 100] current duty cycle for breathing effect
 
     const char *fatal_error_msg; // pointer to a string describing the fatal error, if any
+
 } Context_t;
 
 void FSM_Init(Context_t *context);
 void FSM_Run(Context_t *context);
 void FSM_TriggerButtonPress(Context_t *context);
+
+int uint_to_string(uint16_t num, char *str);
 
 #endif

@@ -1,6 +1,6 @@
 #include "Core/Inc/recruiting/filters/filters.h"
 
-void Moving_Average_Filter_Init(MovingAverageFilter_t *f)
+void Moving_Average_Filter_Pot_Init(MovingAverageFilterPot_t *f)
 {
     f->index = 0;
     f->sum = 0;
@@ -12,7 +12,37 @@ void Moving_Average_Filter_Init(MovingAverageFilter_t *f)
     }
 }
 
-uint16_t Moving_Average_Filter_Apply(MovingAverageFilter_t *f, uint16_t new_sample)
+void Moving_Average_Filter_NTC_Init(MovingAverageFilterNTC_t *f)
+{
+    f->index = 0;
+    f->sum = 0;
+    f->count = 0;
+
+    for (int i = 0; i < FILTER_WINDOW_SIZE; i++)
+    {
+        f->buffer[i] = 0;
+    }
+}
+
+uint16_t Moving_Average_Filter_Pot_Apply(MovingAverageFilterPot_t *f, uint16_t new_sample)
+{
+    f->sum -= f->buffer[f->index];
+
+    f->buffer[f->index] = new_sample;
+    f->sum += new_sample;
+
+    f->index = (f->index + 1) % FILTER_WINDOW_SIZE;
+
+    if (f->count < FILTER_WINDOW_SIZE)
+    {
+        f->count++;
+        return (uint16_t)(f->sum / f->count);
+    }
+
+    return (uint16_t)(f->sum / FILTER_WINDOW_SIZE);
+}
+
+uint16_t Moving_Average_Filter_NTC_Apply(MovingAverageFilterNTC_t *f, uint16_t new_sample)
 {
     f->sum -= f->buffer[f->index];
 
