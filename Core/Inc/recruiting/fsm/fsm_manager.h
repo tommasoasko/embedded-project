@@ -2,11 +2,9 @@
 #define FSM_MANAGER_H
 
 #include <stdint.h>
-#include "usart.h"
-#include "tim.h"
 #include "eagletrt-fsm-api.h"
 #include "Core/Inc/recruiting/filters/filters.h"
-#include "adc.h"
+#include "Core/Inc/recruiting/bsp/bsp_interface.h"
 
 #define THRESHOLD 500 // define a threshold value for the warning condition
 #define WAITING_TIM1_AUTORELOAD 500

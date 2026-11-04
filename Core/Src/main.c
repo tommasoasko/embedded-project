@@ -30,6 +30,7 @@
 #include <string.h>
 #include "Core/Inc/recruiting/filters/filters.h"
 #include "Core/Inc/recruiting/fsm/fsm_manager.h"
+#include "Core/Inc/recruiting/bsp/bsp_interface.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

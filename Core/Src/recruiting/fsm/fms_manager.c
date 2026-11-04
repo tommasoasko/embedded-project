@@ -1,4 +1,5 @@
 #include "Core/Inc/recruiting/fsm/fsm_manager.h"
+#include "adc.h"
 
 struct FSMHandler system_fsm;
 
@@ -11,7 +12,7 @@ struct FSMHandler system_fsm;
 void routine_post(void *data)
 {
     Context_t *ctx = (Context_t *)data;
-    uint32_t current_time = HAL_GetTick();
+    uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
     {
@@ -19,19 +20,17 @@ void routine_post(void *data)
 
         char *msg_cli = "\r\n--- POST STATE---\r\n"
                         "Performing Power-On Self-Test (POST)...\r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg_cli, strlen(msg_cli), 100);
+        bsp_uart_print(msg_cli);
 
-        if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ctx->adc_data, 2) != HAL_OK)
+        bsp_adc_disable_dma_irq();
+        if (bsp_adc_start_dma((uint32_t *)ctx->adc_data, 2) != 0)
         {
             ctx->fatal_error_msg = "ERROR: HAL_ADC_Start_DMA failed (HAL_ERROR/BUSY)\r\n";
             ctx->state_just_changed = 1;
             fsm_api_transition_to(&system_fsm, STATE_FATAL);
             return;
         }
-        else
-        {
-            HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
-        }
+        
 
         ctx->state_entry_time = current_time;
         return;
@@ -85,7 +84,7 @@ void routine_post(void *data)
 void routine_waiting(void *data)
 {
     Context_t *ctx = (Context_t *)data;
-    uint32_t current_time = HAL_GetTick();
+    uint32_t current_time = bsp_get_time_ms();
 
     // set board LED PWM, reset timers
     if (ctx->state_just_changed)
@@ -94,17 +93,13 @@ void routine_waiting(void *data)
 
         char *msg_cli = "\r\n--- WAITING STATE: CLI MODE ON ---\r\n"
                         "Type 'run' to start listening.\r\n> ";
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg_cli, strlen(msg_cli), 100);
+        bsp_uart_print(msg_cli);
 
         // configure board LED (500ms, 15% duty cycle)
-        __HAL_TIM_SET_AUTORELOAD(&htim1, WAITING_TIM1_AUTORELOAD);
-        __HAL_TIM_SET_COUNTER(&htim1, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, WAITING_TIM1_COMPARE);
+        bsp_board_led_set_pwm(WAITING_TIM1_AUTORELOAD, WAITING_TIM1_COMPARE);
 
         // configure external LED (breathing 2 sec)
-        __HAL_TIM_SET_AUTORELOAD(&htim3, WAITING_TIM3_AUTORELOAD);
-        __HAL_TIM_SET_COUNTER(&htim3, 0);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, WAITING_TIM3_COMPARE);
+        bsp_ext_led_set_pwm(WAITING_TIM3_AUTORELOAD, WAITING_TIM3_COMPARE);
 
         ctx->breathing_duty = 0;
         ctx->breathing_direction = 1;
@@ -130,7 +125,7 @@ void routine_waiting(void *data)
         }
 
         // apply the new duty cycle to the external LED PWM
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, ctx->breathing_duty * 10); // scale to [0, 1000] for PWM
+        bsp_ext_led_set_duty(ctx->breathing_duty * 10); // scale to [0, 1000] for PWM
     }
 
     if (ctx->button_pressed || ctx->cli_command_run)
@@ -153,7 +148,7 @@ void routine_waiting(void *data)
 void routine_listening(void *data)
 {
     Context_t *ctx = (Context_t *)data;
-    uint32_t current_time = HAL_GetTick();
+    uint32_t current_time = bsp_get_time_ms();
 
     // set board LED PWM, reset timers
     if (ctx->state_just_changed)
@@ -162,12 +157,10 @@ void routine_listening(void *data)
 
         char *msg_cli = "\r\n--- LISTENING STATE ---\r\n"
                         "Streaming sensor data...\r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg_cli, strlen(msg_cli), 100);
+        bsp_uart_print(msg_cli);
 
         // configure board LED: PWM 200ms, duty 80%
-        __HAL_TIM_SET_AUTORELOAD(&htim1, LISTENING_TIM1_AUTORELOAD);
-        __HAL_TIM_SET_COUNTER(&htim1, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, LISTENING_TIM1_COMPARE);
+        bsp_board_led_set_pwm(LISTENING_TIM1_AUTORELOAD, LISTENING_TIM1_COMPARE);
 
         // reset timers for UART transmission and warning condition
         ctx->last_uart_tx_time = current_time;
@@ -217,7 +210,7 @@ void routine_listening(void *data)
 
         strcpy(buffer + len, "\r\n");
         len += 2;
-        HAL_UART_Transmit(&huart2, (uint8_t *)buffer, len, 100);
+        bsp_uart_print(buffer);
     }
 
     // set the external LED PWM based on the difference between filtered NTC and POT values
@@ -226,12 +219,12 @@ void routine_listening(void *data)
         uint16_t diff = ctx->filtered_ntc - ctx->filtered_pot;
         uint16_t duty_cycle_value = (diff > THRESHOLD) ? 100 : diff;
         duty_cycle_value = (duty_cycle_value * 100) / THRESHOLD;             // scale to [0, 100]
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, duty_cycle_value * 10); // scale to [0, 1000] for PWM
+        bsp_ext_led_set_duty(duty_cycle_value * 10); // scale to [0, 1000] for PWM
     }
     else
     {
         // apply 0% PWM
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+        bsp_ext_led_set_duty(0);
     }
 
     // check for button press to transition to PAUSE state
@@ -266,7 +259,7 @@ void routine_listening(void *data)
 void routine_pause(void *data)
 {
     Context_t *ctx = (Context_t *)data;
-    uint32_t current_time = HAL_GetTick();
+    uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
     {
@@ -274,18 +267,13 @@ void routine_pause(void *data)
 
         char *msg_cli = "\r\n--- PAUSE STATE ---\r\n"
                         "Streaming paused. Press button or type 'run' to resume.\r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg_cli, strlen(msg_cli), 100);
+        bsp_uart_print(msg_cli);
 
         // configure board LED: PWM 2000ms, duty 50%
-        __HAL_TIM_SET_AUTORELOAD(&htim1, PAUSE_TIM1_AUTORELOAD);
-        __HAL_TIM_SET_COUNTER(&htim1, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PAUSE_TIM1_COMPARE);
+        bsp_board_led_set_pwm(PAUSE_TIM1_AUTORELOAD, PAUSE_TIM1_COMPARE);
 
         // configure external LED (breathing 2 sec)
-        __HAL_TIM_SET_AUTORELOAD(&htim3, PAUSE_TIM3_AUTORELOAD);
-        __HAL_TIM_SET_COUNTER(&htim3, 0);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PAUSE_TIM3_COMPARE);
-        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+        bsp_ext_led_set_pwm(PAUSE_TIM3_AUTORELOAD, PAUSE_TIM3_COMPARE);
 
         ctx->breathing_duty = 0;
         ctx->breathing_direction = 1;
@@ -311,7 +299,7 @@ void routine_pause(void *data)
         }
 
         // apply the new duty cycle to the external LED PWM
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, ctx->breathing_duty * 10); // scale to [0, 1000] for PWM
+        bsp_ext_led_set_duty(ctx->breathing_duty * 10); // scale to [0, 1000] for PWM
     }
 
     if (ctx->button_pressed || ctx->cli_command_run)
@@ -331,7 +319,7 @@ void routine_pause(void *data)
 void routine_warning(void *data)
 {
     Context_t *ctx = (Context_t *)data;
-    uint32_t current_time = HAL_GetTick();
+    uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
     {
@@ -339,15 +327,15 @@ void routine_warning(void *data)
 
         char *msg_cli = "\r\n--- WARNING STATE ---\r\n"
                         "Warning: NTC value has been higher than POT value for 5 seconds.\r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg_cli, strlen(msg_cli), 100);
+        bsp_uart_print(msg_cli);
 
         // reset timers for UART transmission
         ctx->state_entry_time = current_time;
         ctx->last_uart_tx_time = ctx->state_entry_time;
         ctx->btn_hold_time = 0; // reset button hold time
 
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, WARNING_TIM1_COMPARE);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, WARNING_TIM3_COMPARE);
+        bsp_board_led_set_duty(WARNING_TIM1_COMPARE);
+        bsp_ext_led_set_duty(WARNING_TIM3_COMPARE);
 
         ctx->streaming_mode = 1; // set streaming mode flag
     }
@@ -358,10 +346,10 @@ void routine_warning(void *data)
 
         // send warning message via UART
         char *warning_msg = "WARNING\r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t *)warning_msg, strlen(warning_msg), 100);
+        bsp_uart_print(warning_msg);
     }
 
-    if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET)
+    if (bsp_is_button_pressed())
     {
         if (ctx->btn_hold_time == 0)
         {
@@ -396,7 +384,7 @@ void routine_warning(void *data)
 void routine_fatal(void *data)
 {
     Context_t *ctx = (Context_t *)data;
-    uint32_t current_time = HAL_GetTick();
+    uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
     {
@@ -404,18 +392,16 @@ void routine_fatal(void *data)
 
         char *msg_cli = "\r\n--- FATAL STATE ---\r\n"
                         "A fatal error has occurred. System halted.\r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg_cli, strlen(msg_cli), 100);
+        bsp_uart_print(msg_cli);
 
         if (ctx->fatal_error_msg != NULL)
         {
-            HAL_UART_Transmit(&huart2, (uint8_t *)ctx->fatal_error_msg, strlen(ctx->fatal_error_msg), 100);
+            bsp_uart_print(ctx->fatal_error_msg);
         }
 
-        __HAL_TIM_SET_AUTORELOAD(&htim1, FATAL_TIM1_AUTORELOAD);
-        __HAL_TIM_SET_COUNTER(&htim1, 0);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, FATAL_TIM1_COMPARE);
+        bsp_board_led_set_pwm(FATAL_TIM1_AUTORELOAD, FATAL_TIM1_COMPARE);
 
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, FATAL_TIM3_COMPARE);
+        bsp_ext_led_set_duty(FATAL_TIM3_COMPARE);
 
         ctx->state_entry_time = current_time;
         ctx->last_uart_tx_time = ctx->state_entry_time;
@@ -428,8 +414,8 @@ void routine_fatal(void *data)
 
         // send fatal error message via UART
         char *fatal_msg = "ERROR: ";
-        HAL_UART_Transmit(&huart2, (uint8_t *)fatal_msg, strlen(fatal_msg), 100);
-        HAL_UART_Transmit(&huart2, (uint8_t *)ctx->fatal_error_msg, strlen(ctx->fatal_error_msg), 100);
+        bsp_uart_print(fatal_msg);
+        bsp_uart_print(ctx->fatal_error_msg);
     }
 
     if (ctx->button_pressed)
@@ -437,7 +423,7 @@ void routine_fatal(void *data)
         ctx->button_pressed = 0;
 
         // software reset the system
-        NVIC_SystemReset();
+        bsp_system_reset();
     }
 }
 
