@@ -22,4 +22,8 @@ void bsp_ext_led_stop(void);
 
 void bsp_system_reset(void);
 
+void bsp_uart_listen_start(void);
+uint8_t bsp_uart_msg_ready(void);
+void bsp_uart_get_msg(char *out_buffer);
+
 #endif // BSP_INTERFACE_H

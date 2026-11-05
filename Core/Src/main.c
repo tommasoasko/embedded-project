@@ -109,8 +109,7 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-  // Start UART reception in interrupt mode for one character
-  HAL_UART_Receive_IT(&huart2, &rx_char, 1);
+  bsp_uart_listen_start(); // start listening for UART messages
 
   // reset the context
   memset(&fsm_context, 0, sizeof(Context_t));
@@ -189,61 +188,6 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
     FSM_TriggerButtonPress(&fsm_context);
   }
 }
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if (huart->Instance == USART2)
-  {
-    HAL_UART_Transmit(&huart2, &rx_char, 1, 10);
-    if (rx_char == '\r')
-      HAL_UART_Transmit(&huart2, (uint8_t *)"\n", 1, 10);
-
-    if (rx_char == '\r' || rx_char == '\n')
-    {
-      if (cli_idx > 0)
-      {
-        cli_buffer[cli_idx] = '\0';
-
-        // cli command parsing
-        if (strcmp(cli_buffer, "run") == 0)
-        {
-          fsm_context.cli_command_run = 1; // Trigger per l'FSM
-        }
-        else if (strcmp(cli_buffer, "raw") == 0)
-        {
-          fsm_context.current_filter = NO_FILTER;
-          HAL_UART_Transmit(&huart2, (uint8_t *)"Filter: RAW\r\n> ", 15, 100);
-        }
-        else if (strcmp(cli_buffer, "moving average") == 0)
-        {
-          fsm_context.current_filter = MOVING_AVERAGE_FILTER;
-          HAL_UART_Transmit(&huart2, (uint8_t *)"Filter: MOVING AVERAGE\r\n> ", 26, 100);
-        }
-        else if (strcmp(cli_buffer, "random") == 0)
-        {
-          fsm_context.current_filter = RANDOM_NOISE_FILTER;
-          HAL_UART_Transmit(&huart2, (uint8_t *)"Filter: RANDOM NOISE\r\n> ", 24, 100);
-        }
-        else
-        {
-          HAL_UART_Transmit(&huart2, (uint8_t *)"Unknown command\r\n> ", 20, 100);
-        }
-
-        cli_idx = 0;
-      }
-    }
-    else if (rx_char >= 32 && rx_char <= 126)
-    {
-      if (cli_idx < sizeof(cli_buffer) - 1)
-      {
-        cli_buffer[cli_idx++] = rx_char;
-      }
-    }
-
-    HAL_UART_Receive_IT(&huart2, &rx_char, 1);
-  }
-}
-
 /* USER CODE END 4 */
 
 /**

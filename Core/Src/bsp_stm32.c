@@ -5,6 +5,11 @@
 #include "adc.h"
 #include <string.h>
 
+static char bsp_cli_buffer[64];            // Buffer to store received UART characters
+static volatile uint8_t bsp_cli_idx = 0;   // Index for the next character in the buffer
+static uint8_t bsp_rx_char = 0;            // Variable to hold the received character
+static volatile uint8_t bsp_msg_ready = 0; // Flag to indicate that a complete message has been received
+
 /**
  * @brief Get the current time in milliseconds
  * @return Current time in milliseconds
@@ -129,4 +134,75 @@ void bsp_ext_led_stop(void)
 void bsp_system_reset(void)
 {
     NVIC_SystemReset();
+}
+
+/**
+ * @brief Start listening for UART messages
+ */
+void bsp_uart_listen_start(void)
+{
+    HAL_UART_Receive_IT(&huart2, &bsp_rx_char, 1);
+}
+
+/**
+ * @brief Check if a complete UART message is ready
+ * @return 1 if a message is ready, 0 otherwise
+ */
+uint8_t bsp_uart_msg_ready(void)
+{
+    return bsp_msg_ready;
+}
+
+/**
+ * @brief Get the latest UART message
+ * @param out_buffer Buffer to store the retrieved message
+ */
+void bsp_uart_get_msg(char *out_buffer)
+{
+    strcpy(out_buffer, bsp_cli_buffer);
+    bsp_msg_ready = 0;
+    bsp_cli_idx = 0;
+}
+
+/**
+ * @brief UART receive complete callback
+ * @param huart UART handle
+ */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2)
+    {
+        if (bsp_rx_char == '\b' || bsp_rx_char == 127)
+        {
+            if (bsp_cli_idx > 0)
+            {
+                bsp_cli_idx--;
+                
+                uint8_t bs_seq[3] = {'\b', ' ', '\b'};
+                HAL_UART_Transmit(&huart2, bs_seq, 3, 5); 
+            }
+        }
+        else if (bsp_rx_char == '\r')
+        {
+            uint8_t crlf[2] = {'\r', '\n'};
+            HAL_UART_Transmit(&huart2, crlf, 2, 5);
+
+            bsp_cli_buffer[bsp_cli_idx] = '\0';
+            bsp_msg_ready = 1;
+        }
+        else if (bsp_rx_char == '\n')
+        {
+        }
+        else if (bsp_rx_char >= 32 && bsp_rx_char <= 126)
+        {
+            if (bsp_cli_idx < sizeof(bsp_cli_buffer) - 1)
+            {
+                bsp_cli_buffer[bsp_cli_idx++] = bsp_rx_char;
+                
+                HAL_UART_Transmit(&huart2, &bsp_rx_char, 1, 5);
+            }
+        }
+
+        HAL_UART_Receive_IT(&huart2, &bsp_rx_char, 1);
+    }
 }

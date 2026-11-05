@@ -30,7 +30,6 @@ void routine_post(void *data)
             fsm_api_transition_to(&system_fsm, STATE_FATAL);
             return;
         }
-        
 
         ctx->state_entry_time = current_time;
         return;
@@ -90,9 +89,12 @@ void routine_waiting(void *data)
     if (ctx->state_just_changed)
     {
         ctx->state_just_changed = 0;
+        ctx->cli_enabled = 1; // enable CLI during waiting state
 
         char *msg_cli = "\r\n--- WAITING STATE: CLI MODE ON ---\r\n"
-                        "Type 'run' to start listening.\r\n> ";
+                        "Press button or type 'run' to start listening.\r\n> "
+                        "Type 'raw', 'moving average', or 'random' to select the filter type.\r\n"
+                        "> ";
         bsp_uart_print(msg_cli);
 
         // configure board LED (500ms, 15% duty cycle)
@@ -104,6 +106,40 @@ void routine_waiting(void *data)
         ctx->breathing_duty = 0;
         ctx->breathing_direction = 1;
         ctx->last_breathing_update = current_time;
+    }
+
+    // check for CLI commands
+    if (ctx->cli_enabled && bsp_uart_msg_ready())
+    {
+        char local_cmd[64];
+        bsp_uart_get_msg(local_cmd);
+
+        // parsing CLI commands
+        if (strcmp(local_cmd, "run") == 0)
+        {
+            ctx->state_just_changed = 1;
+            fsm_api_transition_to(&system_fsm, STATE_LISTENING);
+            return;
+        }
+        else if (strcmp(local_cmd, "raw") == 0)
+        {
+            ctx->current_filter = NO_FILTER;
+            bsp_uart_print("Filter: RAW\r\n> ");
+        }
+        else if (strcmp(local_cmd, "moving average") == 0)
+        {
+            ctx->current_filter = MOVING_AVERAGE_FILTER;
+            bsp_uart_print("Filter: MOVING AVERAGE\r\n> ");
+        }
+        else if (strcmp(local_cmd, "random") == 0)
+        {
+            ctx->current_filter = RANDOM_NOISE_FILTER;
+            bsp_uart_print("Filter: RANDOM NOISE\r\n> ");
+        }
+        else
+        {
+            bsp_uart_print("Unknown command\r\n> ");
+        }
     }
 
     // update duty cycle for breathing effect every 10ms
@@ -154,6 +190,7 @@ void routine_listening(void *data)
     if (ctx->state_just_changed)
     {
         ctx->state_just_changed = 0;
+        ctx->cli_enabled = 0; // disable CLI during listening state
 
         char *msg_cli = "\r\n--- LISTENING STATE ---\r\n"
                         "Streaming sensor data...\r\n";
@@ -218,8 +255,8 @@ void routine_listening(void *data)
     {
         uint16_t diff = ctx->filtered_ntc - ctx->filtered_pot;
         uint16_t duty_cycle_value = (diff > THRESHOLD) ? 100 : diff;
-        duty_cycle_value = (duty_cycle_value * 100) / THRESHOLD;             // scale to [0, 100]
-        bsp_ext_led_set_duty(duty_cycle_value * 10); // scale to [0, 1000] for PWM
+        duty_cycle_value = (duty_cycle_value * 100) / THRESHOLD; // scale to [0, 100]
+        bsp_ext_led_set_duty(duty_cycle_value * 10);             // scale to [0, 1000] for PWM
     }
     else
     {
@@ -264,9 +301,12 @@ void routine_pause(void *data)
     if (ctx->state_just_changed)
     {
         ctx->state_just_changed = 0;
+        ctx->cli_enabled = 1; // enable CLI during pause state
 
         char *msg_cli = "\r\n--- PAUSE STATE ---\r\n"
-                        "Streaming paused. Press button or type 'run' to resume.\r\n";
+                        "Streaming paused. Press button or type 'run' to resume.\r\n"
+                        "Type 'raw', 'moving average', or 'random' to select the filter type.\r\n"
+                        "> ";
         bsp_uart_print(msg_cli);
 
         // configure board LED: PWM 2000ms, duty 50%
@@ -278,6 +318,40 @@ void routine_pause(void *data)
         ctx->breathing_duty = 0;
         ctx->breathing_direction = 1;
         ctx->last_breathing_update = current_time;
+    }
+
+    // check for CLI commands
+    if (ctx->cli_enabled && bsp_uart_msg_ready())
+    {
+        char local_cmd[64];
+        bsp_uart_get_msg(local_cmd);
+
+        // parsing CLI commands
+        if (strcmp(local_cmd, "run") == 0)
+        {
+            ctx->state_just_changed = 1;
+            fsm_api_transition_to(&system_fsm, STATE_LISTENING);
+            return;
+        }
+        else if (strcmp(local_cmd, "raw") == 0)
+        {
+            ctx->current_filter = NO_FILTER;
+            bsp_uart_print("Filter: RAW\r\n> ");
+        }
+        else if (strcmp(local_cmd, "moving average") == 0)
+        {
+            ctx->current_filter = MOVING_AVERAGE_FILTER;
+            bsp_uart_print("Filter: MOVING AVERAGE\r\n> ");
+        }
+        else if (strcmp(local_cmd, "random") == 0)
+        {
+            ctx->current_filter = RANDOM_NOISE_FILTER;
+            bsp_uart_print("Filter: RANDOM NOISE\r\n> ");
+        }
+        else
+        {
+            bsp_uart_print("Unknown command\r\n> ");
+        }
     }
 
     // update duty cycle for breathing effect every 10ms
@@ -324,6 +398,7 @@ void routine_warning(void *data)
     if (ctx->state_just_changed)
     {
         ctx->state_just_changed = 0;
+        ctx->cli_enabled = 0; // disable CLI during warning state
 
         char *msg_cli = "\r\n--- WARNING STATE ---\r\n"
                         "Warning: NTC value has been higher than POT value for 5 seconds.\r\n";
@@ -336,8 +411,6 @@ void routine_warning(void *data)
 
         bsp_board_led_set_duty(WARNING_TIM1_COMPARE);
         bsp_ext_led_set_duty(WARNING_TIM3_COMPARE);
-
-        ctx->streaming_mode = 1; // set streaming mode flag
     }
 
     if (current_time - ctx->last_uart_tx_time >= 200)
@@ -389,6 +462,7 @@ void routine_fatal(void *data)
     if (ctx->state_just_changed)
     {
         ctx->state_just_changed = 0;
+        ctx->cli_enabled = 0; // disable CLI during fatal state
 
         char *msg_cli = "\r\n--- FATAL STATE ---\r\n"
                         "A fatal error has occurred. System halted.\r\n";
@@ -405,7 +479,6 @@ void routine_fatal(void *data)
 
         ctx->state_entry_time = current_time;
         ctx->last_uart_tx_time = ctx->state_entry_time;
-        ctx->streaming_mode = 0; // clear streaming mode flag
     }
 
     if (current_time - ctx->last_uart_tx_time >= 100)

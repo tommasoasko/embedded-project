@@ -47,7 +47,7 @@ typedef struct
 
     uint8_t button_pressed;     // flag (0/1) set by the button interrupt
     uint8_t cli_command_run;    // flag (0/1) set when a CLI command is received
-    uint8_t streaming_mode;     // flag (0/1) set when in streaming mode
+    uint8_t cli_enabled;        // flag (0/1) set when CLI is enabled
     uint8_t state_just_changed; // flag (0/1) set when the state has just changed
 
     uint32_t state_entry_time;        // timestamp when the current state was entered
