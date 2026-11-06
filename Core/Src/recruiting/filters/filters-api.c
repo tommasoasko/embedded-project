@@ -1,7 +1,7 @@
 #include "Core/Inc/recruiting/filters/filters.h"
 
 /** @brief Initialize the moving average filter for the potentiometer
- * 
+ *
  * @param f Pointer to the moving average filter structure
  */
 void Moving_Average_Filter_Pot_Init(MovingAverageFilterPot_t *f)
@@ -17,7 +17,7 @@ void Moving_Average_Filter_Pot_Init(MovingAverageFilterPot_t *f)
 }
 
 /** @brief Initialize the moving average filter for the NTC thermistor
- * 
+ *
  * @param f Pointer to the moving average filter structure
  */
 void Moving_Average_Filter_NTC_Init(MovingAverageFilterNTC_t *f)
@@ -33,7 +33,7 @@ void Moving_Average_Filter_NTC_Init(MovingAverageFilterNTC_t *f)
 }
 
 /** @brief Apply a moving average filter to a new sample of the potentiometer
- * 
+ *
  * @param f Pointer to the moving average filter structure
  * @param new_sample The new sample to filter
  * @return The filtered sample
@@ -57,7 +57,7 @@ uint16_t Moving_Average_Filter_Pot_Apply(MovingAverageFilterPot_t *f, uint16_t n
 }
 
 /** @brief Apply a moving average filter to a new sample of the NTC thermistor
- * 
+ *
  * @param f Pointer to the moving average filter structure
  * @param new_sample The new sample to filter
  * @return The filtered sample
@@ -81,7 +81,7 @@ uint16_t Moving_Average_Filter_NTC_Apply(MovingAverageFilterNTC_t *f, uint16_t n
 }
 
 /** @brief Apply a random noise filter to a new sample
- * 
+ *
  * @param new_sample The new sample to filter
  * @param noise_level The maximum level of noise to apply
  * @return The filtered sample

@@ -1,5 +1,4 @@
 #include "Core/Inc/recruiting/fsm/fsm_manager.h"
-#include "adc.h"
 
 struct FSMHandler system_fsm;
 
