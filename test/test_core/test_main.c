@@ -3,8 +3,8 @@
 #include "eagletrt-fsm-api.h"
 
 #include "Core/Inc/recruiting/filters/filters.h"
-#include "Core/Inc/recruiting/fsm/fsm_manager.h"
-#include "Core/Inc/recruiting/bsp/bsp_interface.h"
+#include "Core/Inc/recruiting/fsm/fsm-manager.h"
+#include "Core/Inc/recruiting/bsp/bsp-interface.h"
 
 // initialize the FFF framework
 DEFINE_FFF_GLOBALS;
@@ -24,7 +24,7 @@ FAKE_VOID_FUNC(bsp_system_reset);
 FAKE_VALUE_FUNC(uint8_t, bsp_is_button_pressed);
 
 extern struct FSMHandler system_fsm;
-Context_t ctx;
+FSMContext ctx;
 static uint16_t dummy_adc_buffer[2];
 
 void setUp(void)
@@ -44,7 +44,7 @@ void setUp(void)
     RESET_FAKE(bsp_system_reset);
     RESET_FAKE(bsp_is_button_pressed);
 
-    memset(&ctx, 0, sizeof(Context_t));
+    memset(&ctx, 0, sizeof(FSMContext));
     memset(&system_fsm, 0, sizeof(struct FSMHandler));
 
     ctx.adc_data = dummy_adc_buffer;
@@ -62,15 +62,15 @@ void custom_bsp_uart_get_msg_random(char *out_buffer) { strcpy(out_buffer, "rand
 
 void helper_reach_waiting_state(void)
 {
-    FSM_Init(&ctx);
+    fsm_Init(&ctx);
     ctx.state_just_changed = 1;
-    FSM_Run(&ctx); // setup POST state
+    fsm_run(&ctx); // setup POST state
 
     bsp_get_time_ms_fake.return_val = 60;
     ctx.adc_data[0] = 2000;
     ctx.adc_data[1] = 2000;
-    FSM_Run(&ctx); // go to WAITING state
-    FSM_Run(&ctx); // setup WAITING state
+    fsm_run(&ctx); // go to WAITING state
+    fsm_run(&ctx); // setup WAITING state
 }
 
 // TESTS
@@ -79,12 +79,12 @@ void helper_reach_waiting_state(void)
 void test_moving_average_math(void)
 {
     // setup the moving average filter
-    Moving_Average_Filter_Pot_Init(&ctx.moving_average_filter_pot);
+    moving_average_filter_pot_init(&ctx.moving_average_filter_pot);
 
     // apply three samples to the filter
-    Moving_Average_Filter_Pot_Apply(&ctx.moving_average_filter_pot, 1000);
-    Moving_Average_Filter_Pot_Apply(&ctx.moving_average_filter_pot, 2000);
-    uint16_t current_val = Moving_Average_Filter_Pot_Apply(&ctx.moving_average_filter_pot, 3000);
+    moving_average_filter_pot_apply(&ctx.moving_average_filter_pot, 1000);
+    moving_average_filter_pot_apply(&ctx.moving_average_filter_pot, 2000);
+    uint16_t current_val = moving_average_filter_pot_apply(&ctx.moving_average_filter_pot, 3000);
 
     // assert (1000 + 2000 + 3000) / 3 = 2000
     TEST_ASSERT_EQUAL_UINT16(2000, current_val);
@@ -93,10 +93,10 @@ void test_moving_average_math(void)
 // test 2: button press triggers transition from WAITING to LISTENING
 void test_fsm_button_triggers_listening(void)
 {
-    FSM_Init(&ctx);
+    fsm_Init(&ctx);
 
     // setup POST state
-    FSM_Run(&ctx);
+    fsm_run(&ctx);
 
     // setup fake time and ADC values to transition to WAITING state
     bsp_get_time_ms_fake.return_val = 60;
@@ -104,17 +104,17 @@ void test_fsm_button_triggers_listening(void)
     ctx.adc_data[1] = 2000;
 
     // run FSM to transition to WAITING state
-    FSM_Run(&ctx);
+    fsm_run(&ctx);
 
     // assert that the FSM is now in the WAITING state
     TEST_ASSERT_EQUAL(STATE_WAITING, fsm_api_get_state(&system_fsm));
 
     // setup the FSM for the WAITING state
-    FSM_Run(&ctx);
+    fsm_run(&ctx);
 
     // simulate button press to transition to LISTENING state
     ctx.button_pressed = 1;
-    FSM_Run(&ctx);
+    fsm_run(&ctx);
 
     // assert that the button_pressed flag has been reset
     TEST_ASSERT_EQUAL_UINT8(0, ctx.button_pressed);
@@ -132,7 +132,7 @@ void test_fsm_cli_run_command(void)
     bsp_uart_msg_ready_fake.return_val = 1;
     bsp_uart_get_msg_fake.custom_fake = custom_bsp_uart_get_msg_run;
 
-    FSM_Run(&ctx);
+    fsm_run(&ctx);
 
     TEST_ASSERT_EQUAL(STATE_LISTENING, fsm_api_get_state(&system_fsm));
 }
@@ -140,15 +140,15 @@ void test_fsm_cli_run_command(void)
 // test 4: hardware fault during POST triggers transition to FATAL
 void test_post_hardware_fault_triggers_fatal(void)
 {
-    FSM_Init(&ctx);
+    fsm_Init(&ctx);
     ctx.state_just_changed = 1;
-    FSM_Run(&ctx); // Setup POST
+    fsm_run(&ctx); // Setup POST
 
     bsp_get_time_ms_fake.return_val = 60;
     ctx.adc_data[0] = 5;    // POT value out of range (< 10)
     ctx.adc_data[1] = 2000; // normal NTC value
 
-    FSM_Run(&ctx); // Run FSM, should detect hardware fault and transition to FATAL state
+    fsm_run(&ctx); // Run FSM, should detect hardware fault and transition to FATAL state
 
     // assert that the FSM is now in the FATAL state
     TEST_ASSERT_EQUAL(STATE_FATAL, fsm_api_get_state(&system_fsm));
@@ -162,7 +162,7 @@ void test_cli_changes_filter_type_in_waiting(void)
     // simulate receiving the "random" command via UART
     bsp_uart_msg_ready_fake.return_val = 1;
     bsp_uart_get_msg_fake.custom_fake = custom_bsp_uart_get_msg_random;
-    FSM_Run(&ctx);
+    fsm_run(&ctx);
 
     // assert that the current filter type has been changed to RANDOM_NOISE_FILTER
     TEST_ASSERT_EQUAL(RANDOM_NOISE_FILTER, ctx.current_filter);
@@ -178,12 +178,12 @@ void test_listening_button_triggers_pause(void)
 
     // press button in WAITING state to transition to LISTENING state
     ctx.button_pressed = 1;
-    FSM_Run(&ctx); // go to LISTENING state
-    FSM_Run(&ctx); // setup LISTENING state
+    fsm_run(&ctx); // go to LISTENING state
+    fsm_run(&ctx); // setup LISTENING state
 
     // press button in LISTENING state
     ctx.button_pressed = 1;
-    FSM_Run(&ctx); // process button press in LISTENING state
+    fsm_run(&ctx); // process button press in LISTENING state
 
     // assert that the button_pressed flag has been reset
     TEST_ASSERT_EQUAL_UINT8(0, ctx.button_pressed);
@@ -199,11 +199,11 @@ void test_listening_anomaly_triggers_warning(void)
 
     // simulate "run" command to transition to LISTENING state
     ctx.cli_command_run = 1;
-    FSM_Run(&ctx); // go to LISTENING state
+    fsm_run(&ctx); // go to LISTENING state
 
     // set the initial time to 100ms
     bsp_get_time_ms_fake.return_val = 100;
-    FSM_Run(&ctx); // setup LISTENING state
+    fsm_run(&ctx); // setup LISTENING state
 
     // set the time to 5101ms (sufficient time for the timeout)
     bsp_get_time_ms_fake.return_val = 5101;
@@ -212,7 +212,7 @@ void test_listening_anomaly_triggers_warning(void)
     ctx.filtered_pot = 1000;
     ctx.filtered_ntc = 4000;
 
-    FSM_Run(&ctx); // check for warning condition and transition to WARNING state
+    fsm_run(&ctx); // check for warning condition and transition to WARNING state
 
     // assert that the FSM is now in the WARNING state
     TEST_ASSERT_EQUAL(STATE_WARNING, fsm_api_get_state(&system_fsm));

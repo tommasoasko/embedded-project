@@ -1,4 +1,4 @@
-#include "Core/Inc/recruiting/bsp/bsp_interface.h"
+#include "Core/Inc/recruiting/bsp/bsp-interface.h"
 #include "main.h"
 #include "tim.h"
 #include "usart.h"

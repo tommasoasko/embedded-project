@@ -4,7 +4,7 @@
  *
  * @param f Pointer to the moving average filter structure
  */
-void Moving_Average_Filter_Pot_Init(MovingAverageFilterPot_t *f)
+void moving_average_filter_pot_init(MovingAverageFilterPot_s *f)
 {
     f->index = 0;
     f->sum = 0;
@@ -20,7 +20,7 @@ void Moving_Average_Filter_Pot_Init(MovingAverageFilterPot_t *f)
  *
  * @param f Pointer to the moving average filter structure
  */
-void Moving_Average_Filter_NTC_Init(MovingAverageFilterNTC_t *f)
+void moving_average_filter_ntc_init(MovingAverageFilterNTC_s *f)
 {
     f->index = 0;
     f->sum = 0;
@@ -38,7 +38,7 @@ void Moving_Average_Filter_NTC_Init(MovingAverageFilterNTC_t *f)
  * @param new_sample The new sample to filter
  * @return The filtered sample
  */
-uint16_t Moving_Average_Filter_Pot_Apply(MovingAverageFilterPot_t *f, uint16_t new_sample)
+uint16_t moving_average_filter_pot_apply(MovingAverageFilterPot_s *f, uint16_t new_sample)
 {
     f->sum -= f->buffer[f->index];
 
@@ -62,7 +62,7 @@ uint16_t Moving_Average_Filter_Pot_Apply(MovingAverageFilterPot_t *f, uint16_t n
  * @param new_sample The new sample to filter
  * @return The filtered sample
  */
-uint16_t Moving_Average_Filter_NTC_Apply(MovingAverageFilterNTC_t *f, uint16_t new_sample)
+uint16_t moving_average_filter_ntc_apply(MovingAverageFilterNTC_s *f, uint16_t new_sample)
 {
     f->sum -= f->buffer[f->index];
 
@@ -86,11 +86,11 @@ uint16_t Moving_Average_Filter_NTC_Apply(MovingAverageFilterNTC_t *f, uint16_t n
  * @param noise_level The maximum level of noise to apply
  * @return The filtered sample
  */
-uint16_t Random_Noise_Filter_Apply(uint16_t new_sample, uint16_t noise_level)
+uint16_t random_noise_filter_apply(uint16_t new_sample, uint16_t noise_level)
 {
 
-    int16_t noise = (rand() % (2 * noise_level + 1)) - noise_level; // Random noise in range [-noise_level, noise_level]
-    int16_t new_value = (int32_t)new_sample + noise;
+    int16_t noise = (int16_t)(rand() % (2 * noise_level + 1)) - noise_level; // random noise in range [-noise_level, noise_level]
+    int16_t new_value = new_sample + noise;
 
     if (new_value < 0)
         new_value = 0;

@@ -6,7 +6,7 @@
 #include "filters-api.h"
 
 /** @brief Structure containing the context for the potentiometer moving average filter */
-struct MovingAverageFilterPot_s
+struct MovingAverageFilterPot
 {
     uint16_t buffer[FILTER_WINDOW_SIZE];
     uint16_t index;
@@ -15,7 +15,7 @@ struct MovingAverageFilterPot_s
 };
 
 /** @brief Structure containing the context for the NTC thermistor moving average filter */
-struct MovingAverageFilterNTC_s
+struct MovingAverageFilterNTC
 {
     uint16_t buffer[FILTER_WINDOW_SIZE];
     uint16_t index;
@@ -24,11 +24,11 @@ struct MovingAverageFilterNTC_s
 };
 
 /** @brief Enumerated type for the filter types */
-typedef enum
+enum FilterType
 {
     NO_FILTER,
     MOVING_AVERAGE_FILTER,
     RANDOM_NOISE_FILTER,
-} FilterType_t;
+};
 
 #endif // FILTERS_H

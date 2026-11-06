@@ -4,13 +4,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct MovingAverageFilterPot_s MovingAverageFilterPot_t;
-typedef struct MovingAverageFilterNTC_s MovingAverageFilterNTC_t;
+typedef struct MovingAverageFilterPot MovingAverageFilterPot_s;
+typedef struct MovingAverageFilterNTC MovingAverageFilterNTC_s;
 
-void Moving_Average_Filter_Pot_Init(MovingAverageFilterPot_t *f);
-void Moving_Average_Filter_NTC_Init(MovingAverageFilterNTC_t *f);
-uint16_t Moving_Average_Filter_Pot_Apply(MovingAverageFilterPot_t *f, uint16_t new_sample);
-uint16_t Moving_Average_Filter_NTC_Apply(MovingAverageFilterNTC_t *f, uint16_t new_sample);
-uint16_t Random_Noise_Filter_Apply(uint16_t new_sample, uint16_t noise_level);
+void moving_average_filter_pot_init(MovingAverageFilterPot_s *f);
+void moving_average_filter_ntc_init(MovingAverageFilterNTC_s *f);
+uint16_t moving_average_filter_pot_apply(MovingAverageFilterPot_s *f, uint16_t new_sample);
+uint16_t moving_average_filter_ntc_apply(MovingAverageFilterNTC_s *f, uint16_t new_sample);
+uint16_t random_noise_filter_apply(uint16_t new_sample, uint16_t noise_level);
 
 #endif

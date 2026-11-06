@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "eagletrt-fsm-api.h"
 #include "Core/Inc/recruiting/filters/filters.h"
-#include "Core/Inc/recruiting/bsp/bsp_interface.h"
+#include "Core/Inc/recruiting/bsp/bsp-interface.h"
 
 #define THRESHOLD 500 // define a threshold value for the warning condition
 #define WAITING_TIM1_AUTORELOAD 500
@@ -24,7 +24,7 @@
 #define FATAL_TIM3_COMPARE 0
 
 /** @brief Enumerated type for the system states */
-typedef enum
+enum SystemState
 {
     STATE_POST = 0,
     STATE_WAITING,
@@ -32,18 +32,18 @@ typedef enum
     STATE_PAUSE,
     STATE_WARNING,
     STATE_FATAL
-} SystemState_t;
+};
 
 /** @brief Structure containing the context for the finite state machine */
-typedef struct
+struct FSMContext
 {
-    volatile uint16_t *adc_data; // DMA buffer for ADC values
-    FilterType_t current_filter; // current filter type
-    uint16_t filtered_pot;       // filtered potentiometer value
-    uint16_t filtered_ntc;       // filtered NTC value
+    volatile uint16_t *adc_data;    // DMA buffer for ADC values
+    enum FilterType current_filter; // current filter type
+    uint16_t filtered_pot;          // filtered potentiometer value
+    uint16_t filtered_ntc;          // filtered NTC value
 
-    MovingAverageFilterPot_t moving_average_filter_pot; // moving average filter for potentiometer
-    MovingAverageFilterNTC_t moving_average_filter_ntc; // moving average filter for NTC
+    MovingAverageFilterPot_s moving_average_filter_pot; // moving average filter for potentiometer
+    MovingAverageFilterNTC_s moving_average_filter_ntc; // moving average filter for NTC
 
     uint8_t button_pressed;     // flag (0/1) set by the button interrupt
     uint8_t cli_command_run;    // flag (0/1) set when a CLI command is received
@@ -60,12 +60,11 @@ typedef struct
     int16_t breathing_duty;         // [0, 100] current duty cycle for breathing effect
 
     const char *fatal_error_msg; // pointer to a string describing the fatal error, if any
+};
 
-} Context_t;
-
-void FSM_Init(Context_t *context);
-void FSM_Run(Context_t *context);
-void FSM_TriggerButtonPress(Context_t *context);
+void fsm_init(struct FSMContext *context);
+void fsm_run(struct FSMContext *context);
+void fsm_trigger_button_press(struct FSMContext *context);
 
 int uint_to_string(uint16_t num, char *str);
 

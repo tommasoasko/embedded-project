@@ -29,8 +29,8 @@
 // #include <stdio.h>
 #include <string.h>
 #include "Core/Inc/recruiting/filters/filters.h"
-#include "Core/Inc/recruiting/fsm/fsm_manager.h"
-#include "Core/Inc/recruiting/bsp/bsp_interface.h"
+#include "Core/Inc/recruiting/fsm/fsm-manager.h"
+#include "Core/Inc/recruiting/bsp/bsp-interface.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,12 +51,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-Context_t fsm_context;
+struct FSMContext fsm_context;
 volatile uint16_t adc_data[2] = {0, 0}; // holds ADC values for potentiometer and NTC
 
 char cli_buffer[64];
 volatile uint8_t cli_idx = 0;
-static uint8_t rx_char = 0;
 
 /* USER CODE END PV */
 
@@ -112,15 +111,15 @@ int main(void)
   bsp_uart_listen_start(); // start listening for UART messages
 
   // reset the context
-  memset(&fsm_context, 0, sizeof(Context_t));
+  memset(&fsm_context, 0, sizeof(struct FSMContext));
   fsm_context.adc_data = adc_data;
   fsm_context.current_filter = NO_FILTER;
   fsm_context.state_just_changed = 1;
 
-  Moving_Average_Filter_Pot_Init(&fsm_context.moving_average_filter_pot);
-  Moving_Average_Filter_NTC_Init(&fsm_context.moving_average_filter_ntc);
+  moving_average_filter_pot_init(&fsm_context.moving_average_filter_pot);
+  moving_average_filter_ntc_init(&fsm_context.moving_average_filter_ntc);
 
-  FSM_Init(&fsm_context);
+  fsm_init(&fsm_context);
 
   HAL_Delay(3000);
 
@@ -133,10 +132,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    fsm_context.filtered_pot = Moving_Average_Filter_Pot_Apply(&fsm_context.moving_average_filter_pot, adc_data[0]);
-    fsm_context.filtered_ntc = Moving_Average_Filter_NTC_Apply(&fsm_context.moving_average_filter_ntc, adc_data[1]);
+    fsm_context.filtered_pot = moving_average_filter_pot_apply(&fsm_context.moving_average_filter_pot, adc_data[0]);
+    fsm_context.filtered_ntc = moving_average_filter_ntc_apply(&fsm_context.moving_average_filter_ntc, adc_data[1]);
 
-    FSM_Run(&fsm_context);
+    fsm_run(&fsm_context);
 
     /* USER CODE END WHILE */
 
@@ -185,7 +184,7 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == GPIO_PIN_13)
   {
-    FSM_TriggerButtonPress(&fsm_context);
+    fsm_trigger_button_press(&fsm_context);
   }
 }
 /* USER CODE END 4 */

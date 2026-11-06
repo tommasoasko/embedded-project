@@ -1,4 +1,4 @@
-#include "Core/Inc/recruiting/fsm/fsm_manager.h"
+#include "Core/Inc/recruiting/fsm/fsm-manager.h"
 
 struct FSMHandler system_fsm;
 
@@ -10,7 +10,7 @@ struct FSMHandler system_fsm;
  */
 void routine_post(void *data)
 {
-    Context_t *ctx = (Context_t *)data;
+    struct FSMContext *ctx = (struct FSMContext *)data;
     uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
@@ -81,7 +81,7 @@ void routine_post(void *data)
  */
 void routine_waiting(void *data)
 {
-    Context_t *ctx = (Context_t *)data;
+    struct FSMContext *ctx = (struct FSMContext *)data;
     uint32_t current_time = bsp_get_time_ms();
 
     // set board LED PWM, reset timers
@@ -146,7 +146,7 @@ void routine_waiting(void *data)
     {
         ctx->last_breathing_update = current_time;
 
-        ctx->breathing_duty += ctx->breathing_direction;
+        ctx->breathing_duty += (int16_t)ctx->breathing_direction;
 
         if (ctx->breathing_duty >= 100)
         {
@@ -182,7 +182,7 @@ void routine_waiting(void *data)
  */
 void routine_listening(void *data)
 {
-    Context_t *ctx = (Context_t *)data;
+    struct FSMContext *ctx = (struct FSMContext *)data;
     uint32_t current_time = bsp_get_time_ms();
 
     // set board LED PWM, reset timers
@@ -226,11 +226,11 @@ void routine_listening(void *data)
         case RANDOM_NOISE_FILTER:
             strcpy(buffer, "POT noise: ");
             len = 11;
-            len += uint_to_string(Random_Noise_Filter_Apply(ctx->adc_data[0], 20), buffer + len); // TODO idk if 20 is a good level
+            len += uint_to_string(random_noise_filter_apply(ctx->adc_data[0], 20), buffer + len); // TODO idk if 20 is a good level
 
             strcpy(buffer + len, ", NTC noise: ");
             len += 13;
-            len += uint_to_string(Random_Noise_Filter_Apply(ctx->filtered_pot, 20), buffer + len); // TODO idk if 20 is a good level
+            len += uint_to_string(random_noise_filter_apply(ctx->filtered_pot, 20), buffer + len); // TODO idk if 20 is a good level
             break;
         case NO_FILTER:
         default:
@@ -252,7 +252,7 @@ void routine_listening(void *data)
     // set the external LED PWM based on the difference between filtered NTC and POT values
     if (ctx->filtered_ntc > ctx->filtered_pot)
     {
-        uint16_t diff = ctx->filtered_ntc - ctx->filtered_pot;
+        uint16_t diff = (uint16_t)(ctx->filtered_ntc - ctx->filtered_pot);
         uint16_t duty_cycle_value = (diff > THRESHOLD) ? 100 : diff;
         duty_cycle_value = (duty_cycle_value * 100) / THRESHOLD; // scale to [0, 100]
         bsp_ext_led_set_duty(duty_cycle_value * 10);             // scale to [0, 1000] for PWM
@@ -294,7 +294,7 @@ void routine_listening(void *data)
  */
 void routine_pause(void *data)
 {
-    Context_t *ctx = (Context_t *)data;
+    struct FSMContext *ctx = (struct FSMContext *)data;
     uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
@@ -358,7 +358,7 @@ void routine_pause(void *data)
     {
         ctx->last_breathing_update = current_time;
 
-        ctx->breathing_duty += ctx->breathing_direction;
+        ctx->breathing_duty += (int16_t)ctx->breathing_direction;
 
         if (ctx->breathing_duty >= 100)
         {
@@ -391,7 +391,7 @@ void routine_pause(void *data)
  */
 void routine_warning(void *data)
 {
-    Context_t *ctx = (Context_t *)data;
+    struct FSMContext *ctx = (struct FSMContext *)data;
     uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
@@ -455,7 +455,7 @@ void routine_warning(void *data)
  */
 void routine_fatal(void *data)
 {
-    Context_t *ctx = (Context_t *)data;
+    struct FSMContext *ctx = (struct FSMContext *)data;
     uint32_t current_time = bsp_get_time_ms();
 
     if (ctx->state_just_changed)
@@ -685,7 +685,7 @@ struct State states[] = {
  *
  * @param context Pointer to the context structure containing system state and data
  */
-void FSM_Init(Context_t *context)
+void fsm_init(struct FSMContext *context)
 {
     fsm_api_init(&system_fsm, states, sizeof(states) / sizeof(states[0]), STATE_POST);
 }
@@ -695,7 +695,7 @@ void FSM_Init(Context_t *context)
  *
  * @param context Pointer to the context structure containing system state and data
  */
-void FSM_Run(Context_t *context)
+void fsm_run(struct FSMContext *context)
 {
 
     fsm_api_run_state(&system_fsm, context);
@@ -706,7 +706,7 @@ void FSM_Run(Context_t *context)
  *
  * @param context Pointer to the context structure containing system state and data
  */
-void FSM_TriggerButtonPress(Context_t *context)
+void fsm_trigger_button_press(struct FSMContext *context)
 {
     if (context != NULL)
     {
@@ -735,7 +735,7 @@ int uint_to_string(uint16_t num, char *str)
         int temp_idx = 0;
         while (num > 0)
         {
-            temp[temp_idx++] = (num % 10) + '0';
+            temp[temp_idx++] = (char)((num % 10) + '0');
             num /= 10;
         }
         while (temp_idx > 0)
